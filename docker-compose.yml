@@ -1,0 +1,80 @@
+## Official Flagsmith self-hosted stack
+## Source: https://raw.githubusercontent.com/Flagsmith/flagsmith/main/docker-compose.yml
+
+x-flagsmith-env: &flagsmith-env
+  DATABASE_URL: postgresql://postgres:password@postgres:5432/flagsmith
+  USE_POSTGRES_FOR_ANALYTICS: "true"
+  ENVIRONMENT: production
+  DJANGO_ALLOWED_HOSTS: "*"
+  FLAGSMITH_DOMAIN: localhost:8000
+  DJANGO_SECRET_KEY: change-me-in-real-use
+  TASK_RUN_METHOD: TASK_PROCESSOR
+  PROMETHEUS_ENABLED: "true"
+
+volumes:
+  pgdata:
+
+services:
+  postgres:
+    image: postgres:15.5-alpine
+    container_name: flagsmith_postgres
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: flagsmith
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d flagsmith -U postgres"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 20s
+
+  migrate-db:
+    image: docker.flagsmith.com/flagsmith/flagsmith:latest
+    command: ["migrate"]
+    environment:
+      <<: *flagsmith-env
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  flagsmith:
+    image: docker.flagsmith.com/flagsmith/flagsmith:latest
+    command: ["serve"]
+    environment:
+      <<: *flagsmith-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate-db:
+        condition: service_completed_successfully
+
+  flagsmith-task-processor:
+    image: docker.flagsmith.com/flagsmith/flagsmith:latest
+    command: run-task-processor
+    environment:
+      <<: *flagsmith-env
+    ports:
+      - "8001:8000"
+    depends_on:
+      migrate-db:
+        condition: service_completed_successfully
+
+  demo-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.demo
+    ports:
+      - "5000:5000"
+    environment:
+      FLAGSMITH_BASE_URL: http://flagsmith:8000
+      FLAGSMITH_ADMIN_TOKEN: ${FLAGSMITH_ADMIN_TOKEN}
+      FLAGSMITH_ENVIRONMENT_NAME: ${FLAGSMITH_ENVIRONMENT_NAME:-Development}
+      FLAGSMITH_FEATURE_NAME: ${FLAGSMITH_FEATURE_NAME:-my_feature}
+      FLAGSMITH_AUTH_MODE: ${FLAGSMITH_AUTH_MODE:-auto}
+    depends_on:
+      flagsmith:
+        condition: service_started
