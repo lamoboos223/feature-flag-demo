@@ -7,7 +7,7 @@ from app import create_app, resolve_version
 
 def test_returns_v1_when_flag_is_disabled():
     def fake_evaluator(flag_name, entity_id, extra_context):
-        return False
+        return "v1"
 
     result = resolve_version(fake_evaluator, "api-version-v2", "user-a")
     assert result == "v1"
@@ -15,7 +15,7 @@ def test_returns_v1_when_flag_is_disabled():
 
 def test_returns_v2_when_flag_is_enabled():
     def fake_evaluator(flag_name, entity_id, extra_context):
-        return True
+        return "v2"
 
     result = resolve_version(fake_evaluator, "api-version-v2", "user-b")
     assert result == "v2"

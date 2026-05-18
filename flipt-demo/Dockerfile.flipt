@@ -1,0 +1,4 @@
+FROM docker.flipt.io/flipt/flipt:v1.47.0
+
+USER root
+RUN apk add --no-cache git

@@ -1,53 +1,13 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: flipt-postgres
-    environment:
-      POSTGRES_DB: flipt
-      POSTGRES_USER: flipt
-      POSTGRES_PASSWORD: flipt
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U flipt -d flipt"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    ports:
-      - "5432:5432"
-
-  redis:
-    image: redis:7-alpine
-    container_name: flipt-redis
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    ports:
-      - "6379:6379"
-
-  redisinsight:
-    image: redis/redisinsight:latest
-    container_name: flipt-redisinsight
-    depends_on:
-      redis:
-        condition: service_healthy
-    ports:
-      - "5540:5540"
-    volumes:
-      - redisinsight-data:/data
-
   flipt:
-    image: docker.flipt.io/flipt/flipt:v1.47.0
+    build:
+      context: .
+      dockerfile: Dockerfile.flipt
     container_name: flipt-server
     command: ["/flipt", "--config", "/etc/flipt/config.yml"]
     volumes:
       - ./flipt-config.yml:/etc/flipt/config.yml:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - ./flipt-state-repo:/flipt-state-repo:ro
     ports:
       - "8080:8080"
       - "9000:9000"
@@ -66,6 +26,3 @@ services:
       PORT: "5000"
     ports:
       - "5000:5000"
-
-volumes:
-  redisinsight-data:

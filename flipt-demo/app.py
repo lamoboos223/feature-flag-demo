@@ -5,15 +5,15 @@ import requests
 from flask import Flask, jsonify, request
 
 
-def evaluate_boolean_flag(
+def evaluate_variant_flag(
     base_url: str,
     namespace_key: str,
     flag_key: str,
     entity_id: str,
     extra_context: dict[str, str] | None = None,
     auth_token: str | None = None,
-) -> bool:
-    url = f"{base_url.rstrip('/')}/evaluate/v1/boolean"
+) -> str:
+    url = f"{base_url.rstrip('/')}/evaluate/v1/variant"
     context = {"entityId": entity_id, "userId": entity_id}
     if extra_context:
         context.update(extra_context)
@@ -30,16 +30,19 @@ def evaluate_boolean_flag(
     response = requests.post(url, json=payload, headers=headers, timeout=10)
     response.raise_for_status()
     data = response.json()
-    return bool(data.get("enabled", False))
+    variant_key = data.get("variantKey")
+    if not variant_key:
+        return "v1"
+    return str(variant_key)
 
 
 def resolve_version(
-    evaluator: Callable[[str, str, dict[str, str] | None], bool],
+    evaluator: Callable[[str, str, dict[str, str] | None], str],
     flag_name: str,
     entity_id: str,
     extra_context: dict[str, str] | None = None,
 ) -> str:
-    return "v2" if evaluator(flag_name, entity_id, extra_context) else "v1"
+    return evaluator(flag_name, entity_id, extra_context)
 
 
 def create_app() -> Flask:
@@ -55,10 +58,10 @@ def create_app() -> Flask:
         target_flag_name: str,
         entity_id: str,
         extra_context: dict[str, str] | None = None,
-    ) -> bool:
+    ) -> str:
         if skip_flipt_eval:
-            return False
-        return evaluate_boolean_flag(
+            return "v1"
+        return evaluate_variant_flag(
             base_url=flipt_url,
             namespace_key=namespace_key,
             flag_key=target_flag_name,
