@@ -1,0 +1,22 @@
+services:
+  flipt:
+    image: docker.flipt.io/flipt/flipt:v1.47.0
+    container_name: flipt-server
+    ports:
+      - "8080:8080"
+      - "9000:9000"
+
+  demo-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flipt-flask-demo
+    depends_on:
+      - flipt
+    environment:
+      FLIPT_URL: http://flipt:8080
+      FLIPT_NAMESPACE_KEY: default
+      FLIPT_FLAG_NAME: api-version-v2
+      PORT: "5000"
+    ports:
+      - "5000:5000"
