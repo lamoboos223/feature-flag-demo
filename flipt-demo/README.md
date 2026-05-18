@@ -2,9 +2,7 @@
 
 This demo runs:
 - Flipt server
-- PostgreSQL (Flipt database)
-- Redis (Flipt cache backend)
-- Flask API that returns `v1` or `v2` based on a Flipt boolean feature flag
+- Flask API that returns `v1` or `v2` based on Flipt rules
 
 ## Start with Docker Compose
 
@@ -15,63 +13,30 @@ docker compose up --build -d
 Open Flipt UI:
 - `http://localhost:8080`
 
-## Toggle the flag using Python (`.venv`)
+## Change flag behavior (Git source of truth)
 
-Create and activate a virtual environment:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-Turn feature ON:
+Edit `flipt-state-repo/features.yml` and commit the change:
 
 ```powershell
-.\.venv\Scripts\python toggle_feature.py --state on
+cd flipt-state-repo
+git add features.yml
+git commit -m "Update Flipt rules"
 ```
 
-Turn feature OFF:
-
-```powershell
-.\.venv\Scripts\python toggle_feature.py --state off
-```
-
-By default, the script manages:
-- namespace: `default`
-- flag: `api-version-v2`
-- Flipt base URL: `http://localhost:8080`
-
-You can override them:
-
-```powershell
-.\.venv\Scripts\python toggle_feature.py `
-  --base-url http://localhost:8080 `
-  --namespace default `
-  --flag api-version-v2 `
-  --state on
-```
+Flipt polls the repository and applies changes automatically.
 
 ## Test the API
 
 ```powershell
-curl "http://localhost:5000/?userId=alice"
+curl.exe --location "http://localhost:5000" `
+  --header "Content-Type: application/json" `
+  --data-raw "{\"email\":\"alice@gmail.com\"}"
 ```
 
-Expected behavior:
-- Flag ON -> `"version": "v2"`
-- Flag OFF -> `"version": "v1"`
-
-If `userId` is missing:
+If `email` is missing:
 
 ```json
-{"error":"Missing required query parameter: userId"}
-```
-
-## Run tests
-
-```powershell
-.\.venv\Scripts\pytest -q
+{"error":"Missing required JSON field: email"}
 ```
 
 ## Stop
