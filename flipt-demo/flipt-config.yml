@@ -1,0 +1,12 @@
+db:
+  url: postgres://flipt:flipt@postgres:5432/flipt?sslmode=disable
+
+cache:
+  enabled: true
+  backend: redis
+  ttl: 5m
+  redis:
+    host: redis
+    port: 6379
+    db: 0
+    prefix: flipt-demo

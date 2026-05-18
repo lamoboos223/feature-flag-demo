@@ -2,6 +2,8 @@
 
 This demo runs:
 - Flipt server
+- PostgreSQL (Flipt database)
+- Redis (Flipt cache backend)
 - Flask API that returns `v1` or `v2` based on a Flipt boolean feature flag
 
 ## Start with Docker Compose
