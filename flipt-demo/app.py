@@ -1,23 +1,21 @@
 import os
 
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 
 app = Flask(__name__)
 flipt_url = os.getenv("FLIPT_URL", "http://localhost:8080")
 namespace = os.getenv("FLIPT_NAMESPACE_KEY", "default")
-flag = os.getenv("FLIPT_FLAG_NAME", "api-version-v2")
-skip_flipt_eval = os.getenv("SKIP_FLIPT_EVAL", "0") == "1"
+feature_flag_key = os.getenv("FLIPT_FLAG_NAME", "api-version-v2")
 
-def evaluate_version(base_url: str, namespace: str, flag: str, email: str) -> str:
+def get_feature_flag_value(feature_flag_key: str, context_values: dict) -> str:
     payload = {
         "namespaceKey": namespace,
-        "flagKey": flag,
-        "entityId": email,
-        "context": {"email": email},
+        "flagKey": feature_flag_key,
+        "context": context_values,
     }
     response = requests.post(
-        f"{base_url.rstrip('/')}/evaluate/v1/variant",
+        f"{flipt_url.rstrip('/')}/evaluate/v1/variant",
         json=payload,
         timeout=10,
     )
@@ -32,15 +30,41 @@ def greeting():
     if not email:
         return jsonify({"error": "Missing required JSON field: email"}), 400
 
-    version = "v1" if skip_flipt_eval else evaluate_version(flipt_url, namespace, flag, str(email))
+    version = get_feature_flag_value(feature_flag_key, {"email": email})
     return jsonify(
         {
-            "feature_flag": flag,
+            "feature_flag": feature_flag_key,
             "email": email,
             "response": f"Hello from {version}",
             "version": version,
         }
     )
+
+
+@app.get("/page")
+def versioned_page() -> Response:
+    email = request.args.get("email")
+    if not email:
+        return jsonify({"error": "Missing required query parameter: email"}), 400
+
+    version = get_feature_flag_value(feature_flag_key, {"email": email})
+    if version == "v2":
+        html = f"""
+        <html><body style="font-family:Arial;background:#ecfeff;padding:24px;">
+          <h1 style="color:#0f766e;">V2 Experience</h1>
+          <p>Welcome <b>{email}</b>.</p>
+          <p>You are seeing the new version based on Flipt rules.</p>
+        </body></html>
+        """
+    else:
+        html = f"""
+        <html><body style="font-family:Arial;background:#f8fafc;padding:24px;">
+          <h1 style="color:#334155;">V1 Experience</h1>
+          <p>Welcome <b>{email}</b>.</p>
+          <p>You are seeing the stable fallback version.</p>
+        </body></html>
+        """
+    return Response(html, mimetype="text/html")
 
 
 if __name__ == "__main__":
