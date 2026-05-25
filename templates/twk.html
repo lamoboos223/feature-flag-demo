@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tawakkalna – Feature Flag Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* ───────── reset ───────── */
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Tajawal',sans-serif;background:#0f172a;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#1e293b;overflow-x:hidden}
+
+/* ───────── login overlay ───────── */
+.login-overlay{position:fixed;inset:0;background:#0f172a;z-index:100;display:flex;align-items:center;justify-content:center;transition:opacity .4s,visibility .4s}
+.login-overlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.login-card{background:#fff;border-radius:24px;padding:40px 36px;width:380px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.4)}
+.login-logo{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#047857,#10b981);margin:0 auto 16px;display:flex;align-items:center;justify-content:center}
+.login-logo svg{width:36px;height:36px;fill:#fff}
+.login-card h1{font-size:24px;font-weight:800;margin-bottom:4px;color:#0f172a}
+.login-card .login-sub{font-size:14px;color:#64748b;margin-bottom:28px}
+.login-card h3{font-size:14px;font-weight:700;color:#64748b;margin-bottom:14px;text-align:right;direction:ltr}
+.account-btn{width:100%;padding:16px 20px;border:2px solid #e2e8f0;border-radius:14px;background:#fff;cursor:pointer;display:flex;align-items:center;gap:14px;margin-bottom:12px;transition:border-color .2s,box-shadow .2s;direction:ltr;text-align:left}
+.account-btn:hover{border-color:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.15)}
+.account-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;flex-shrink:0}
+.account-info{display:flex;flex-direction:column;gap:1px}
+.account-name{font-size:15px;font-weight:700;color:#1e293b;font-family:'Tajawal',sans-serif}
+.account-email{font-size:13px;color:#94a3b8;font-family:'Courier New',monospace}
+.account-tag{margin-right:auto;font-size:11px;font-weight:700;padding:3px 10px;border-radius:6px;white-space:nowrap}
+
+/* ───────── layout ───────── */
+.demo-wrap{display:flex;gap:48px;align-items:center;padding:32px;opacity:0;transition:opacity .4s}
+.demo-wrap.visible{opacity:1}
+
+/* ───────── phone ───────── */
+.phone{width:375px;height:812px;background:#f2f2f7;border-radius:44px;overflow:hidden;box-shadow:0 0 0 11px #1c1c1e,0 0 0 13px #3a3a3c,0 24px 80px rgba(0,0,0,.55);display:flex;flex-direction:column;position:relative;flex-shrink:0}
+
+/* status bar */
+.status-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 28px 0;font-size:14px;font-weight:600;direction:ltr}
+.status-bar .time{font-weight:700}
+.status-icons{display:flex;gap:5px;align-items:center}
+.status-icons svg{width:16px;height:16px}
+
+/* scrollable body */
+.app-body{flex:1;overflow-y:auto;padding-bottom:8px;scroll-behavior:smooth}
+.app-body::-webkit-scrollbar{display:none}
+
+/* ───── header ───── */
+.header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px 8px}
+.profile-area{display:flex;align-items:center;gap:12px}
+.avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#d1fae5,#6ee7b7);border:2.5px solid #10b981;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.avatar svg{width:28px;height:28px;fill:#047857}
+.greeting-name{font-size:20px;font-weight:800;color:#1e293b}
+.weather{font-size:13px;color:#64748b;display:flex;align-items:center;gap:4px;direction:rtl}
+.dark-toggle{width:40px;height:40px;border-radius:50%;background:#f8fafc;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.dark-toggle svg{width:20px;height:20px}
+
+/* ───── search ───── */
+.search-section{padding:12px 20px;transition:opacity .4s,max-height .4s,padding .4s;max-height:80px;overflow:hidden}
+.search-section.flag-hidden{opacity:0;max-height:0;padding-top:0;padding-bottom:0}
+.search-box{background:#fff;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.search-box svg{width:20px;height:20px;flex-shrink:0;color:#94a3b8}
+.search-box span{color:#94a3b8;font-size:15px}
+
+/* ───── quick access ───── */
+.quick-access{padding:8px 20px 4px;transition:opacity .4s,max-height .4s,padding .4s;max-height:200px;overflow:hidden}
+.quick-access.flag-hidden{opacity:0;max-height:0;padding-top:0;padding-bottom:0}
+.section-title{font-size:17px;font-weight:700;margin-bottom:10px}
+.qa-cards{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;direction:rtl}
+.qa-cards::-webkit-scrollbar{display:none}
+.qa-card{flex-shrink:0;background:#fff;border-radius:14px;padding:12px 18px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 3px rgba(0,0,0,.04);cursor:pointer;transition:transform .15s}
+.qa-card:hover{transform:scale(1.03)}
+.qa-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.qa-card span{font-size:14px;font-weight:600;white-space:nowrap}
+.qa-green{background:#d1fae5;color:#047857}
+.qa-teal{background:#ccfbf1;color:#0d9488}
+.qa-emerald{background:#d1fae5;color:#059669}
+.qa-sky{background:#e0f2fe;color:#0284c7}
+
+/* ───── city banner ───── */
+.city-banner{padding:12px 20px;transition:opacity .4s,max-height .4s,padding .4s;max-height:400px;overflow:hidden}
+.city-banner.flag-hidden{opacity:0;max-height:0;padding-top:0;padding-bottom:0}
+.banner-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.banner-header h3{font-size:17px;font-weight:700}
+.banner-close{width:28px;height:28px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;font-size:14px;color:#64748b}
+.banner-card{border-radius:20px;overflow:hidden;position:relative;height:200px;background:linear-gradient(135deg,#1e3a5f 0%,#0f766e 50%,#064e3b 100%);display:flex;align-items:flex-end}
+.banner-card::before{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.55) 0%,transparent 60%)}
+.tower-silhouette{position:absolute;right:30%;bottom:0;width:80px;height:180px;display:flex;flex-direction:column;align-items:center}
+.tower-body{width:12px;flex:1;background:linear-gradient(to top,#10b981,#34d399);border-radius:6px 6px 0 0;position:relative}
+.tower-top{width:40px;height:40px;border:4px solid #10b981;border-radius:50% 50% 0 0;border-bottom:none;margin-bottom:-2px}
+.tower-base{width:50px;height:20px;background:#10b981;border-radius:0 0 8px 8px}
+.buildings{position:absolute;bottom:0;left:20px;display:flex;gap:6px;align-items:flex-end}
+.bldg{background:rgba(255,255,255,.15);border-radius:4px 4px 0 0}
+.banner-text{position:relative;z-index:1;padding:16px 20px;color:#fff;font-size:20px;font-weight:700;width:100%;text-shadow:0 2px 8px rgba(0,0,0,.3)}
+.stars{position:absolute;top:15px;left:15px;display:flex;gap:8px}
+.star{width:3px;height:3px;background:#fff;border-radius:50%;opacity:.6}
+
+/* ───── services ───── */
+.services-section{padding:12px 20px}
+.service-icons{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+.svc-icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;transition:transform .15s;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.svc-icon:hover{transform:scale(1.1)}
+.explore-btn{width:100%;padding:16px;background:#1e293b;color:#fff;border:none;border-radius:16px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;transition:background .2s}
+.explore-btn:hover{background:#334155}
+
+/* ───── bottom nav ───── */
+.bottom-nav{background:#fff;border-top:1px solid #e2e8f0;display:flex;padding:8px 0 24px;position:relative;flex-shrink:0}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;cursor:pointer;transition:opacity .4s,max-width .4s,padding .4s,flex .4s;max-width:80px;overflow:hidden}
+.nav-item.flag-hidden{opacity:0;max-width:0;padding:0;flex:0}
+.nav-item svg{width:24px;height:24px}
+.nav-item span{font-size:11px;font-weight:600;white-space:nowrap}
+.nav-item.active svg{color:#047857}
+.nav-item.active span{color:#047857}
+.nav-item:not(.active) svg{color:#94a3b8}
+.nav-item:not(.active) span{color:#94a3b8}
+.notif-dot{position:relative}
+.notif-dot::after{content:'';position:absolute;top:0;left:0;width:7px;height:7px;background:#ef4444;border-radius:50%}
+
+/* ───────── control panel ───────── */
+.panel{background:#fff;border-radius:20px;padding:28px;width:360px;box-shadow:0 24px 80px rgba(0,0,0,.35);flex-shrink:0;direction:ltr}
+.panel-title{font-size:22px;font-weight:800;margin-bottom:4px;color:#0f172a}
+.panel-sub{font-size:13px;color:#64748b;margin-bottom:20px}
+
+/* user bar */
+.user-bar{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#f8fafc;border-radius:12px;margin-bottom:20px;border:1px solid #e2e8f0}
+.user-bar-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0}
+.user-bar-info{display:flex;flex-direction:column;gap:0}
+.user-bar-name{font-size:14px;font-weight:700;color:#1e293b}
+.user-bar-email{font-size:11px;color:#94a3b8;font-family:'Courier New',monospace}
+.switch-btn{margin-left:auto;padding:6px 14px;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-weight:600;color:#64748b;cursor:pointer;font-family:'Tajawal',sans-serif;transition:border-color .2s,color .2s}
+.switch-btn:hover{border-color:#10b981;color:#047857}
+
+/* flag rows */
+.flag-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #f1f5f9}
+.flag-row:last-child{border-bottom:none}
+.flag-info{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.flag-name{font-size:14px;font-weight:600;color:#1e293b}
+.flag-key{font-size:11px;color:#94a3b8;font-family:'Courier New',monospace}
+.flag-override{font-size:11px;color:#f59e0b;font-weight:600;margin-top:2px;display:flex;align-items:center;gap:4px}
+.flag-override::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:#f59e0b}
+.flag-controls{display:flex;align-items:center;gap:10px;flex-shrink:0}
+
+/* badge */
+.flag-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:6px;text-transform:uppercase;min-width:32px;text-align:center}
+.flag-badge.on{background:#d1fae5;color:#047857}
+.flag-badge.off{background:#fee2e2;color:#dc2626}
+
+/* toggle switch */
+.toggle{position:relative;width:48px;height:28px;cursor:pointer;flex-shrink:0}
+.toggle input{display:none}
+.toggle .track{position:absolute;inset:0;background:#e2e8f0;border-radius:14px;transition:background .25s}
+.toggle input:checked+.track{background:#10b981}
+.toggle .knob{position:absolute;top:2px;left:2px;width:24px;height:24px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.15);transition:transform .25s}
+.toggle input:checked~.knob{transform:translateX(20px)}
+
+.panel-link{display:block;margin-top:20px;text-align:center;padding:12px;background:#f0fdf4;border-radius:12px;color:#047857;font-weight:700;font-size:14px;text-decoration:none;transition:background .2s}
+.panel-link:hover{background:#dcfce7}
+
+.poll-status{margin-top:16px;text-align:center;font-size:12px;color:#94a3b8}
+.poll-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-left:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ───────── responsive ───────── */
+@media(max-width:820px){
+  .demo-wrap{flex-direction:column;align-items:center;padding:16px}
+  .phone{width:340px;height:740px;border-radius:38px}
+  .panel{width:340px}
+  .login-card{width:340px;padding:32px 24px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN OVERLAY ============ -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+    </div>
+    <h1>توكلنا</h1>
+    <div class="login-sub">Feature Flag Demo &mdash; اختر حساباً للدخول</div>
+
+    <h3 style="text-align:left">Demo Accounts</h3>
+
+    <button class="account-btn" onclick="doLogin('lama@gmail.com')">
+      <div class="account-avatar" style="background:linear-gradient(135deg,#6ee7b7,#047857)">L</div>
+      <div class="account-info">
+        <div class="account-name">لمى (Lama)</div>
+        <div class="account-email">lama@gmail.com</div>
+      </div>
+      <span class="account-tag" style="background:#d1fae5;color:#047857">All features</span>
+    </button>
+
+    <button class="account-btn" onclick="doLogin('yasser@hotmail.com')">
+      <div class="account-avatar" style="background:linear-gradient(135deg,#93c5fd,#1d4ed8)">Y</div>
+      <div class="account-info">
+        <div class="account-name">ياسر (Yasser)</div>
+        <div class="account-email">yasser@hotmail.com</div>
+      </div>
+      <span class="account-tag" style="background:#fef3c7;color:#b45309">Restricted</span>
+    </button>
+  </div>
+</div>
+
+<!-- ============ MAIN DEMO ============ -->
+<div class="demo-wrap" id="demo-wrap">
+
+<!-- ============ PHONE MOCK ============ -->
+<div class="phone">
+  <!-- status bar -->
+  <div class="status-bar">
+    <span class="time">7:45</span>
+    <div class="status-icons">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2a12.73 12.73 0 0118 0l2-2A15.57 15.57 0 001 9zm4 4l2 2a8.5 8.5 0 0110 0l2-2a11.36 11.36 0 00-14 0zm4 4l3 3 3-3a4.24 4.24 0 00-6 0z"/></svg>
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="6" width="3" height="12" rx="1"/><rect x="6" y="4" width="3" height="14" rx="1"/><rect x="11" y="2" width="3" height="16" rx="1"/><rect x="16" y="0" width="3" height="18" rx="1"/></svg>
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><rect x="19" y="9" width="3" height="6" rx="1"/><rect x="4" y="8" width="8" height="8" rx="1" fill="#34d399"/></svg>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <!-- header -->
+    <div class="header">
+      <div class="profile-area">
+        <div class="avatar">
+          <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v2h20v-2c0-3.3-6.7-5-10-5z"/></svg>
+        </div>
+        <div>
+          <h2 class="greeting-name" id="greeting-name">أهلاً لمى</h2>
+          <div class="weather"><span>🌤</span> 39° - صحو في الرياض الآن</div>
+        </div>
+      </div>
+      <div class="dark-toggle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#334155" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/></svg>
+      </div>
+    </div>
+
+    <!-- search -->
+    <div class="search-section" id="sec-search-bar">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <span>ابحث في توكلنا</span>
+      </div>
+    </div>
+
+    <!-- quick access -->
+    <div class="quick-access" id="sec-quick-access">
+      <div class="section-title">الوصول السريع</div>
+      <div class="qa-cards">
+        <div class="qa-card"><div class="qa-icon qa-green">📅</div><span>التقويم</span></div>
+        <div class="qa-card"><div class="qa-icon qa-teal">💚</div><span>إحسان</span></div>
+        <div class="qa-card"><div class="qa-icon qa-emerald">📄</div><span>المستندات</span></div>
+        <div class="qa-card"><div class="qa-icon qa-sky">🏛️</div><span>الخدمات الحكومية</span></div>
+      </div>
+    </div>
+
+    <!-- city banner -->
+    <div class="city-banner" id="sec-city-banner">
+      <div class="banner-header">
+        <h3>توكلنا معك في كل مدينة</h3>
+        <button class="banner-close">✕</button>
+      </div>
+      <div class="banner-card">
+        <div class="stars"><span class="star"></span><span class="star"></span><span class="star"></span><span class="star"></span></div>
+        <div class="tower-silhouette">
+          <div class="tower-top"></div>
+          <div class="tower-body"></div>
+          <div class="tower-base"></div>
+        </div>
+        <div class="buildings">
+          <div class="bldg" style="width:18px;height:60px"></div>
+          <div class="bldg" style="width:14px;height:45px"></div>
+          <div class="bldg" style="width:20px;height:75px"></div>
+          <div class="bldg" style="width:16px;height:55px"></div>
+          <div class="bldg" style="width:12px;height:35px"></div>
+        </div>
+        <div class="banner-text">معك في الرياض</div>
+      </div>
+    </div>
+
+    <!-- services -->
+    <div class="services-section">
+      <div class="service-icons">
+        <div class="svc-icon" style="background:#d1fae5">🌿</div>
+        <div class="svc-icon" style="background:#fef3c7">📬</div>
+        <div class="svc-icon" style="background:#ffe4e6">📰</div>
+        <div class="svc-icon" style="background:#ccfbf1">💳</div>
+        <div class="svc-icon" style="background:#e0e7ff">🎫</div>
+        <div class="svc-icon" style="background:#f0fdf4">✅</div>
+        <div class="svc-icon" style="background:#fef9c3">🏷️</div>
+      </div>
+      <button class="explore-btn">استكشف خدمات الرياض</button>
+    </div>
+  </div>
+
+  <!-- bottom nav -->
+  <div class="bottom-nav">
+    <div class="nav-item active" id="nav-tawakkalna">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+      <span>توكلنا</span>
+    </div>
+    <div class="nav-item" id="nav-wakeb">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+      <span>واكب</span>
+    </div>
+    <div class="nav-item notif-dot" id="nav-services">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
+      <span>الخدمات</span>
+    </div>
+    <div class="nav-item" id="nav-messages">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+      <span>الرسائل</span>
+    </div>
+    <div class="nav-item" id="nav-myinfo">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 10H6v-2h8v2zm4-4H6v-2h12v2z"/></svg>
+      <span>معلوماتي</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CONTROL PANEL ============ -->
+<div class="panel">
+  <div class="panel-title">Feature Flags</div>
+  <div class="panel-sub">Flags are evaluated per-user. Toggle changes the global state.</div>
+
+  <!-- current user bar -->
+  <div class="user-bar">
+    <div class="user-bar-avatar" id="panel-avatar" style="background:linear-gradient(135deg,#6ee7b7,#047857)">L</div>
+    <div class="user-bar-info">
+      <div class="user-bar-name" id="panel-user-name">Lama</div>
+      <div class="user-bar-email" id="panel-user-email">lama@gmail.com</div>
+    </div>
+    <button class="switch-btn" onclick="showLogin()">Switch</button>
+  </div>
+
+  <div id="flags-container">
+    <!-- populated by JS -->
+  </div>
+
+  <a class="panel-link" href="http://localhost:8080" target="_blank">Open Flipt Dashboard &rarr;</a>
+  <div class="poll-status"><span class="poll-dot"></span> Live &mdash; polling every 2 s</div>
+</div>
+
+</div><!-- /demo-wrap -->
+
+<script>
+/* ── user data ── */
+const USERS = {
+  'lama@gmail.com':     { name: 'لمى',  nameEn: 'Lama',   initial: 'L', gradient: 'linear-gradient(135deg,#6ee7b7,#047857)' },
+  'yasser@hotmail.com': { name: 'ياسر', nameEn: 'Yasser', initial: 'Y', gradient: 'linear-gradient(135deg,#93c5fd,#1d4ed8)' },
+};
+
+const FLAG_META = {
+  'twk_show-search-bar':   { label: 'Search Bar',    ar: 'شريط البحث',      sectionId: 'sec-search-bar',  navId: null },
+  'twk_show-quick-access': { label: 'Quick Access',   ar: 'الوصول السريع',   sectionId: 'sec-quick-access', navId: null },
+  'twk_show-city-banner':  { label: 'City Banner',    ar: 'بانر المدينة',    sectionId: 'sec-city-banner',  navId: null },
+  'twk_show-wakeb':        { label: 'Wakeb Tab',      ar: 'تبويب واكب',      sectionId: null,               navId: 'nav-wakeb' },
+  'twk_show-messages':     { label: 'Messages Tab',   ar: 'تبويب الرسائل',   sectionId: null,               navId: 'nav-messages' },
+};
+
+let currentEmail = null;
+let currentFlags = {};
+let skipPollsUntil = 0; /* after a toggle, skip polls while Flipt syncs git */
+
+/* ── login / logout ── */
+function doLogin(email) {
+  currentEmail = email;
+  const user = USERS[email];
+
+  /* update greeting */
+  document.getElementById('greeting-name').textContent = `أهلاً ${user.name}`;
+
+  /* update panel user bar */
+  const av = document.getElementById('panel-avatar');
+  av.textContent = user.initial;
+  av.style.background = user.gradient;
+  document.getElementById('panel-user-name').textContent = user.nameEn;
+  document.getElementById('panel-user-email').textContent = email;
+
+  /* hide login, show demo */
+  document.getElementById('login-overlay').classList.add('hidden');
+  document.getElementById('demo-wrap').classList.add('visible');
+
+  /* fetch flags immediately */
+  fetchFlags();
+}
+
+function showLogin() {
+  document.getElementById('login-overlay').classList.remove('hidden');
+  document.getElementById('demo-wrap').classList.remove('visible');
+}
+
+/* ── build flag rows ── */
+function buildPanel(flags) {
+  const container = document.getElementById('flags-container');
+  container.innerHTML = '';
+  for (const [key, meta] of Object.entries(FLAG_META)) {
+    const data = flags[key] || { evaluated: true, global: true, overridden: false };
+    const row = document.createElement('div');
+    row.className = 'flag-row';
+    row.id = 'row-' + key;
+    row.innerHTML = `
+      <div class="flag-info">
+        <div class="flag-name">${meta.label} <span style="opacity:.5;font-size:12px">(${meta.ar})</span></div>
+        <div class="flag-key">${key}</div>
+        <div class="flag-override" id="override-${key}" style="display:${data.overridden ? 'flex' : 'none'}">Segment rule override for this user</div>
+      </div>
+      <div class="flag-controls">
+        <span class="flag-badge ${data.evaluated ? 'on' : 'off'}" id="badge-${key}">${data.evaluated ? 'ON' : 'OFF'}</span>
+        <label class="toggle">
+          <input type="checkbox" data-key="${key}" ${data.global ? 'checked' : ''}>
+          <div class="track"></div>
+          <div class="knob"></div>
+        </label>
+      </div>`;
+    container.appendChild(row);
+  }
+  container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => toggleFlag(cb.dataset.key));
+  });
+}
+
+/* ── apply flags to UI ── */
+function applyFlags(flags) {
+  for (const [key, meta] of Object.entries(FLAG_META)) {
+    const data = flags[key] || { evaluated: true, global: true, overridden: false };
+    /* phone mock sections */
+    if (meta.sectionId) {
+      const el = document.getElementById(meta.sectionId);
+      if (el) el.classList.toggle('flag-hidden', !data.evaluated);
+    }
+    if (meta.navId) {
+      const el = document.getElementById(meta.navId);
+      if (el) el.classList.toggle('flag-hidden', !data.evaluated);
+    }
+    /* panel badges & toggles */
+    const badge = document.getElementById('badge-' + key);
+    if (badge) {
+      badge.textContent = data.evaluated ? 'ON' : 'OFF';
+      badge.className = 'flag-badge ' + (data.evaluated ? 'on' : 'off');
+    }
+    const override = document.getElementById('override-' + key);
+    if (override) {
+      override.style.display = data.overridden ? 'flex' : 'none';
+    }
+    const cb = document.querySelector(`input[data-key="${key}"]`);
+    if (cb) cb.checked = data.global;
+  }
+}
+
+/* ── fetch flags ── */
+async function fetchFlags() {
+  if (!currentEmail) return;
+  if (Date.now() < skipPollsUntil) return; /* wait for Flipt to sync git */
+  try {
+    const r = await fetch('/api/twk/flags?email=' + encodeURIComponent(currentEmail));
+    if (!r.ok) return;
+    const flags = await r.json();
+    const needsRebuild = Object.keys(currentFlags).length === 0;
+    currentFlags = flags;
+    if (needsRebuild) buildPanel(flags);
+    applyFlags(flags);
+  } catch (e) { /* Flipt may not be ready yet */ }
+}
+
+/* ── toggle a flag (global via git commit) ── */
+async function toggleFlag(key) {
+  /* optimistic UI update */
+  if (currentFlags[key]) {
+    currentFlags[key].global = !currentFlags[key].global;
+    /* if no segment override, evaluated follows global */
+    if (!currentFlags[key].overridden) {
+      currentFlags[key].evaluated = currentFlags[key].global;
+    }
+  }
+  applyFlags(currentFlags);
+
+  /* skip polls for 8s while Flipt syncs the git commit */
+  skipPollsUntil = Date.now() + 8000;
+
+  try {
+    await fetch(`/api/twk/flags/${key}/toggle`, { method: 'POST' });
+  } catch (e) { /* ignore */ }
+}
+
+/* ── init ── */
+setInterval(fetchFlags, 2000);
+</script>
+</body>
+</html>

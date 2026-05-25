@@ -26,3 +26,22 @@ services:
       PORT: "5000"
     ports:
       - "5000:5000"
+    command: ["python", "app.py"]
+
+  twk-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: twk-demo
+    depends_on:
+      - flipt
+    environment:
+      FLIPT_URL: http://flipt:8080
+      FLIPT_NAMESPACE_KEY: default
+      FLIPT_STATE_REPO: /flipt-state-repo
+      PORT: "5001"
+    volumes:
+      - ./flipt-state-repo:/flipt-state-repo
+    ports:
+      - "5001:5001"
+    command: ["python", "twk.py"]
